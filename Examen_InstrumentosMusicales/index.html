@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clasificador de Instrumentos Musicales</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    #output {
+      margin-top: 20px;
+    }
+    img {
+      max-width: 300px;
+      max-height: 300px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Clasificador de Instrumentos Musicales</h1>
+  <input type="file" id="imageInput" accept="image/*">
+  <div id="output">
+    <p>Carga una imagen para clasificar.</p>
+    <img id="preview" src="" alt="Vista previa">
+    <p id="prediction"></p>
+  </div>
+
+  <script>
+    let model;
+
+    // Cargar el modelo
+    async function loadModel() {
+      model = await tf.loadLayersModel('./tfjs_model/model.json');
+      console.log("Modelo cargado");
+    }
+
+    loadModel();
+
+    const imageInput = document.getElementById("imageInput");
+    const preview = document.getElementById("preview");
+    const predictionElement = document.getElementById("prediction");
+
+    imageInput.addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const imageSrc = reader.result;
+          preview.src = imageSrc;
+
+          const img = new Image();
+          img.src = imageSrc;
+          img.onload = async () => {
+            const tensor = tf.browser.fromPixels(img)
+              .resizeNearestNeighbor([128, 128])
+              .toFloat()
+              .div(tf.scalar(255))
+              .expandDims();
+
+            const prediction = model.predict(tensor);
+            const classLabels = ['Cuerda', 'Viento', 'Percusión']; // Ajustar según las clases entrenadas
+            const predictedIndex = prediction.argMax(-1).dataSync()[0];
+            const confidence = prediction.max().dataSync()[0] * 100;
+
+            predictionElement.innerText = `Predicción: ${classLabels[predictedIndex]} (Confianza: ${confidence.toFixed(2)}%)`;
+          };
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  </script>
+</body>
+</html>
